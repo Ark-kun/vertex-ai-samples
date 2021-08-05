@@ -13,22 +13,17 @@
 # limitations under the License.
 
 """The Trainer component for training a policy on TFRecord files."""
-# Import for the function return value type.
-from typing import NamedTuple  # pylint: disable=unused-import
-
-from kfp.components import InputPath
+from kfp.components import InputPath, OutputPath
 
 def train_reinforcement_learning_policy(
-    training_artifacts_dir: str,
+    training_artifacts_dir_path: OutputPath(),
     tfrecords_path: InputPath("TFRecords"),
     num_epochs: int = 5,
     rank_k: int = 20,
     num_actions: int = 20,
     tikhonov_weight: float = 0.01,
     agent_alpha: float = 10,
-) -> NamedTuple("Outputs", [
-    ("training_artifacts_dir", str),
-]):
+):
   """Implements off-policy training for a policy on dataset of TFRecord files.
 
   The Trainer's task is to submit a remote training job to Vertex AI, with the
@@ -41,7 +36,7 @@ def train_reinforcement_learning_policy(
   import statements and helper functions must reside within itself.
 
   Args:
-    training_artifacts_dir: Path to store the Trainer artifacts (trained
+    training_artifacts_dir_path: Path to store the Trainer artifacts (trained
       policy).
     tfrecords_path: Path to file to write the ingestion result TFRecords.
     num_epochs: Number of training epochs.
@@ -51,9 +46,6 @@ def train_reinforcement_learning_policy(
     tikhonov_weight: LinUCB Tikhonov regularization weight of the Trainer.
     agent_alpha: LinUCB exploration parameter that multiplies the confidence
       intervals of the Trainer.
-
-  Returns:
-    A NamedTuple of (`training_artifacts_dir`).
   """
   # pylint: disable=g-import-not-at-top
   import collections
@@ -235,19 +227,13 @@ def train_reinforcement_learning_policy(
     saver.save(training_artifacts_dir)
 
   execute_training_and_save_policy(
-      training_artifacts_dir=training_artifacts_dir,
+      training_artifacts_dir=training_artifacts_dir_path,
       tfrecord_file=tfrecords_path,
       num_epochs=num_epochs,
       rank_k=rank_k,
       num_actions=num_actions,
       tikhonov_weight=tikhonov_weight,
       agent_alpha=agent_alpha)
-
-  outputs = collections.namedtuple(
-      "Outputs",
-      ["training_artifacts_dir"])
-
-  return outputs(training_artifacts_dir)
 
 
 if __name__ == "__main__":

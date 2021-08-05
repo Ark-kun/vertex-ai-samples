@@ -1,11 +1,6 @@
 name: Train reinforcement learning policy
 description: Implements off-policy training for a policy on dataset of TFRecord files.
 inputs:
-- name: training_artifacts_dir
-  type: String
-  description: |-
-    Path to store the Trainer artifacts (trained
-    policy).
 - {name: tfrecords, type: TFRecords, description: Path to file to write the ingestion
     result TFRecords.}
 - {name: num_epochs, type: Integer, description: Number of training epochs., default: '5',
@@ -29,7 +24,10 @@ inputs:
   default: '10'
   optional: true
 outputs:
-- {name: training_artifacts_dir, type: String}
+- name: training_artifacts_dir
+  description: |-
+    Path to store the Trainer artifacts (trained
+    policy).
 implementation:
   container:
     image: tensorflow/tensorflow:2.5.0
@@ -47,8 +45,13 @@ implementation:
       printf "%s" "$0" > "$program_path"
       python3 -u "$program_path" "$@"
     - |
+      def _make_parent_dirs_and_return_path(file_path: str):
+          import os
+          os.makedirs(os.path.dirname(file_path), exist_ok=True)
+          return file_path
+
       def train_reinforcement_learning_policy(
-          training_artifacts_dir,
+          training_artifacts_dir_path,
           tfrecords_path,
           num_epochs = 5,
           rank_k = 20,
@@ -68,7 +71,7 @@ implementation:
         import statements and helper functions must reside within itself.
 
         Args:
-          training_artifacts_dir: Path to store the Trainer artifacts (trained
+          training_artifacts_dir_path: Path to store the Trainer artifacts (trained
             policy).
           tfrecords_path: Path to file to write the ingestion result TFRecords.
           num_epochs: Number of training epochs.
@@ -78,9 +81,6 @@ implementation:
           tikhonov_weight: LinUCB Tikhonov regularization weight of the Trainer.
           agent_alpha: LinUCB exploration parameter that multiplies the confidence
             intervals of the Trainer.
-
-        Returns:
-          A NamedTuple of (`training_artifacts_dir`).
         """
         # pylint: disable=g-import-not-at-top
         import collections
@@ -259,7 +259,7 @@ implementation:
           saver.save(training_artifacts_dir)
 
         execute_training_and_save_policy(
-            training_artifacts_dir=training_artifacts_dir,
+            training_artifacts_dir=training_artifacts_dir_path,
             tfrecord_file=tfrecords_path,
             num_epochs=num_epochs,
             rank_k=rank_k,
@@ -267,48 +267,19 @@ implementation:
             tikhonov_weight=tikhonov_weight,
             agent_alpha=agent_alpha)
 
-        outputs = collections.namedtuple(
-            "Outputs",
-            ["training_artifacts_dir"])
-
-        return outputs(training_artifacts_dir)
-
-      def _serialize_str(str_value: str) -> str:
-          if not isinstance(str_value, str):
-              raise TypeError('Value "{}" has type "{}" instead of str.'.format(str(str_value), str(type(str_value))))
-          return str_value
-
       import argparse
       _parser = argparse.ArgumentParser(prog='Train reinforcement learning policy', description='Implements off-policy training for a policy on dataset of TFRecord files.')
-      _parser.add_argument("--training-artifacts-dir", dest="training_artifacts_dir", type=str, required=True, default=argparse.SUPPRESS)
       _parser.add_argument("--tfrecords", dest="tfrecords_path", type=str, required=True, default=argparse.SUPPRESS)
       _parser.add_argument("--num-epochs", dest="num_epochs", type=int, required=False, default=argparse.SUPPRESS)
       _parser.add_argument("--rank-k", dest="rank_k", type=int, required=False, default=argparse.SUPPRESS)
       _parser.add_argument("--num-actions", dest="num_actions", type=int, required=False, default=argparse.SUPPRESS)
       _parser.add_argument("--tikhonov-weight", dest="tikhonov_weight", type=float, required=False, default=argparse.SUPPRESS)
       _parser.add_argument("--agent-alpha", dest="agent_alpha", type=float, required=False, default=argparse.SUPPRESS)
-      _parser.add_argument("----output-paths", dest="_output_paths", type=str, nargs=1)
+      _parser.add_argument("--training-artifacts-dir", dest="training_artifacts_dir_path", type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)
       _parsed_args = vars(_parser.parse_args())
-      _output_files = _parsed_args.pop("_output_paths", [])
 
       _outputs = train_reinforcement_learning_policy(**_parsed_args)
-
-      _output_serializers = [
-          _serialize_str,
-
-      ]
-
-      import os
-      for idx, output_file in enumerate(_output_files):
-          try:
-              os.makedirs(os.path.dirname(output_file))
-          except OSError:
-              pass
-          with open(output_file, 'w') as f:
-              f.write(_output_serializers[idx](_outputs[idx]))
     args:
-    - --training-artifacts-dir
-    - {inputValue: training_artifacts_dir}
     - --tfrecords
     - {inputPath: tfrecords}
     - if:
@@ -336,5 +307,5 @@ implementation:
         then:
         - --agent-alpha
         - {inputValue: agent_alpha}
-    - '----output-paths'
+    - --training-artifacts-dir
     - {outputPath: training_artifacts_dir}
