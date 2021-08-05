@@ -18,15 +18,15 @@ from typing import NamedTuple
 
 def generate_movielens_dataset_for_bigquery(
     project_id: str,
-    raw_data_path: str,
-    batch_size: int,
-    rank_k: int,
-    num_actions: int,
-    driver_steps: int,
-    bigquery_tmp_file: str,
-    bigquery_dataset_id: str,
-    bigquery_location: str,
-    bigquery_table_id: str
+    raw_data_path: str = "gs://cloud-samples-data/vertex-ai/growth-rl-demo/u.data",
+    batch_size: int = 8,
+    rank_k: int = 20,
+    num_actions: int = 20,
+    driver_steps: int = 3,
+    bigquery_tmp_file: str = "tmp.json",
+    bigquery_dataset_id: str = "movielens_dataset",
+    bigquery_location: str = "us",
+    bigquery_table_id: str = "movielens_dataset.training_dataset",
 ) -> NamedTuple("Outputs", [
     ("bigquery_dataset_id", str),
     ("bigquery_location", str),

@@ -8,21 +8,26 @@ inputs:
     policy).
 - {name: tfrecord_file, type: String, description: Path to file to write the ingestion
     result TFRecords.}
-- {name: num_epochs, type: Integer, description: Number of training epochs.}
+- {name: num_epochs, type: Integer, description: Number of training epochs., default: '5',
+  optional: true}
 - name: rank_k
   type: Integer
   description: |-
     Rank for matrix factorization in the MovieLens environment; also
     the observation dimension.
+  default: '20'
+  optional: true
 - {name: num_actions, type: Integer, description: Number of actions (movie items)
-    to choose from.}
+    to choose from., default: '20', optional: true}
 - {name: tikhonov_weight, type: Float, description: LinUCB Tikhonov regularization
-    weight of the Trainer.}
+    weight of the Trainer., default: '0.01', optional: true}
 - name: agent_alpha
   type: Float
   description: |-
     LinUCB exploration parameter that multiplies the confidence
     intervals of the Trainer.
+  default: '10'
+  optional: true
 outputs:
 - {name: training_artifacts_dir, type: String}
 implementation:
@@ -45,11 +50,11 @@ implementation:
       def train_reinforcement_learning_policy(
           training_artifacts_dir,
           tfrecord_file,
-          num_epochs,
-          rank_k,
-          num_actions,
-          tikhonov_weight,
-          agent_alpha
+          num_epochs = 5,
+          rank_k = 20,
+          num_actions = 20,
+          tikhonov_weight = 0.01,
+          agent_alpha = 10,
       ):
         """Implements off-policy training for a policy on dataset of TFRecord files.
 
@@ -277,11 +282,11 @@ implementation:
       _parser = argparse.ArgumentParser(prog='Train reinforcement learning policy', description='Implements off-policy training for a policy on dataset of TFRecord files.')
       _parser.add_argument("--training-artifacts-dir", dest="training_artifacts_dir", type=str, required=True, default=argparse.SUPPRESS)
       _parser.add_argument("--tfrecord-file", dest="tfrecord_file", type=str, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--num-epochs", dest="num_epochs", type=int, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--rank-k", dest="rank_k", type=int, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--num-actions", dest="num_actions", type=int, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--tikhonov-weight", dest="tikhonov_weight", type=float, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--agent-alpha", dest="agent_alpha", type=float, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--num-epochs", dest="num_epochs", type=int, required=False, default=argparse.SUPPRESS)
+      _parser.add_argument("--rank-k", dest="rank_k", type=int, required=False, default=argparse.SUPPRESS)
+      _parser.add_argument("--num-actions", dest="num_actions", type=int, required=False, default=argparse.SUPPRESS)
+      _parser.add_argument("--tikhonov-weight", dest="tikhonov_weight", type=float, required=False, default=argparse.SUPPRESS)
+      _parser.add_argument("--agent-alpha", dest="agent_alpha", type=float, required=False, default=argparse.SUPPRESS)
       _parser.add_argument("----output-paths", dest="_output_paths", type=str, nargs=1)
       _parsed_args = vars(_parser.parse_args())
       _output_files = _parsed_args.pop("_output_paths", [])
@@ -306,15 +311,30 @@ implementation:
     - {inputValue: training_artifacts_dir}
     - --tfrecord-file
     - {inputValue: tfrecord_file}
-    - --num-epochs
-    - {inputValue: num_epochs}
-    - --rank-k
-    - {inputValue: rank_k}
-    - --num-actions
-    - {inputValue: num_actions}
-    - --tikhonov-weight
-    - {inputValue: tikhonov_weight}
-    - --agent-alpha
-    - {inputValue: agent_alpha}
+    - if:
+        cond: {isPresent: num_epochs}
+        then:
+        - --num-epochs
+        - {inputValue: num_epochs}
+    - if:
+        cond: {isPresent: rank_k}
+        then:
+        - --rank-k
+        - {inputValue: rank_k}
+    - if:
+        cond: {isPresent: num_actions}
+        then:
+        - --num-actions
+        - {inputValue: num_actions}
+    - if:
+        cond: {isPresent: tikhonov_weight}
+        then:
+        - --tikhonov-weight
+        - {inputValue: tikhonov_weight}
+    - if:
+        cond: {isPresent: agent_alpha}
+        then:
+        - --agent-alpha
+        - {inputValue: agent_alpha}
     - '----output-paths'
     - {outputPath: training_artifacts_dir}

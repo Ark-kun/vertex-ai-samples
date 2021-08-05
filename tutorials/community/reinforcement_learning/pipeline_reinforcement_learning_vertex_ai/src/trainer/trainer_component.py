@@ -20,11 +20,11 @@ from typing import NamedTuple  # pylint: disable=unused-import
 def train_reinforcement_learning_policy(
     training_artifacts_dir: str,
     tfrecord_file: str,
-    num_epochs: int,
-    rank_k: int,
-    num_actions: int,
-    tikhonov_weight: float,
-    agent_alpha: float
+    num_epochs: int = 5,
+    rank_k: int = 20,
+    num_actions: int = 20,
+    tikhonov_weight: float = 0.01,
+    agent_alpha: float = 10,
 ) -> NamedTuple("Outputs", [
     ("training_artifacts_dir", str),
 ]):

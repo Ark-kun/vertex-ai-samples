@@ -8,31 +8,38 @@ inputs:
     client will use the ID of the tenant GCP project created as a result of
     KFP, which doesn't have proper access to BigQuery.
 - {name: raw_data_path, type: String, description: Path to MovieLens 100K's "u.data"
-    file.}
+    file., default: 'gs://cloud-samples-data/vertex-ai/growth-rl-demo/u.data', optional: true}
 - {name: batch_size, type: Integer, description: Batch size of environment generated
-    quantities eg. rewards.}
+    quantities eg. rewards., default: '8', optional: true}
 - name: rank_k
   type: Integer
   description: |-
     Rank for matrix factorization in the MovieLens environment; also
     the observation dimension.
+  default: '20'
+  optional: true
 - {name: num_actions, type: Integer, description: Number of actions (movie items)
-    to choose from.}
-- {name: driver_steps, type: Integer, description: Number of steps to run per batch.}
+    to choose from., default: '20', optional: true}
+- {name: driver_steps, type: Integer, description: Number of steps to run per batch.,
+  default: '3', optional: true}
 - {name: bigquery_tmp_file, type: String, description: Path to a JSON file containing
-    the training dataset.}
+    the training dataset., default: tmp.json, optional: true}
 - name: bigquery_dataset_id
   type: String
   description: |-
     A string of the BigQuery dataset ID in the format of
     "project.dataset".
+  default: movielens_dataset
+  optional: true
 - {name: bigquery_location, type: String, description: A string of the BigQuery dataset
-    location.}
+    location., default: us, optional: true}
 - name: bigquery_table_id
   type: String
   description: |-
     A string of the BigQuery table ID in the format of
     "project.dataset.table".
+  default: movielens_dataset.training_dataset
+  optional: true
 outputs:
 - {name: bigquery_dataset_id, type: String}
 - {name: bigquery_location, type: String}
@@ -56,15 +63,15 @@ implementation:
     - |
       def generate_movielens_dataset_for_bigquery(
           project_id,
-          raw_data_path,
-          batch_size,
-          rank_k,
-          num_actions,
-          driver_steps,
-          bigquery_tmp_file,
-          bigquery_dataset_id,
-          bigquery_location,
-          bigquery_table_id
+          raw_data_path = "gs://cloud-samples-data/vertex-ai/growth-rl-demo/u.data",
+          batch_size = 8,
+          rank_k = 20,
+          num_actions = 20,
+          driver_steps = 3,
+          bigquery_tmp_file = "tmp.json",
+          bigquery_dataset_id = "movielens_dataset",
+          bigquery_location = "us",
+          bigquery_table_id = "movielens_dataset.training_dataset",
       ):
         """Generates BigQuery training data using a MovieLens simulation environment.
 
@@ -304,15 +311,15 @@ implementation:
       import argparse
       _parser = argparse.ArgumentParser(prog='Generate movielens dataset for bigquery', description='Generates BigQuery training data using a MovieLens simulation environment.')
       _parser.add_argument("--project-id", dest="project_id", type=str, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--raw-data-path", dest="raw_data_path", type=str, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--batch-size", dest="batch_size", type=int, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--rank-k", dest="rank_k", type=int, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--num-actions", dest="num_actions", type=int, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--driver-steps", dest="driver_steps", type=int, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--bigquery-tmp-file", dest="bigquery_tmp_file", type=str, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--bigquery-dataset-id", dest="bigquery_dataset_id", type=str, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--bigquery-location", dest="bigquery_location", type=str, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--bigquery-table-id", dest="bigquery_table_id", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--raw-data-path", dest="raw_data_path", type=str, required=False, default=argparse.SUPPRESS)
+      _parser.add_argument("--batch-size", dest="batch_size", type=int, required=False, default=argparse.SUPPRESS)
+      _parser.add_argument("--rank-k", dest="rank_k", type=int, required=False, default=argparse.SUPPRESS)
+      _parser.add_argument("--num-actions", dest="num_actions", type=int, required=False, default=argparse.SUPPRESS)
+      _parser.add_argument("--driver-steps", dest="driver_steps", type=int, required=False, default=argparse.SUPPRESS)
+      _parser.add_argument("--bigquery-tmp-file", dest="bigquery_tmp_file", type=str, required=False, default=argparse.SUPPRESS)
+      _parser.add_argument("--bigquery-dataset-id", dest="bigquery_dataset_id", type=str, required=False, default=argparse.SUPPRESS)
+      _parser.add_argument("--bigquery-location", dest="bigquery_location", type=str, required=False, default=argparse.SUPPRESS)
+      _parser.add_argument("--bigquery-table-id", dest="bigquery_table_id", type=str, required=False, default=argparse.SUPPRESS)
       _parser.add_argument("----output-paths", dest="_output_paths", type=str, nargs=3)
       _parsed_args = vars(_parser.parse_args())
       _output_files = _parsed_args.pop("_output_paths", [])
@@ -337,24 +344,51 @@ implementation:
     args:
     - --project-id
     - {inputValue: project_id}
-    - --raw-data-path
-    - {inputValue: raw_data_path}
-    - --batch-size
-    - {inputValue: batch_size}
-    - --rank-k
-    - {inputValue: rank_k}
-    - --num-actions
-    - {inputValue: num_actions}
-    - --driver-steps
-    - {inputValue: driver_steps}
-    - --bigquery-tmp-file
-    - {inputValue: bigquery_tmp_file}
-    - --bigquery-dataset-id
-    - {inputValue: bigquery_dataset_id}
-    - --bigquery-location
-    - {inputValue: bigquery_location}
-    - --bigquery-table-id
-    - {inputValue: bigquery_table_id}
+    - if:
+        cond: {isPresent: raw_data_path}
+        then:
+        - --raw-data-path
+        - {inputValue: raw_data_path}
+    - if:
+        cond: {isPresent: batch_size}
+        then:
+        - --batch-size
+        - {inputValue: batch_size}
+    - if:
+        cond: {isPresent: rank_k}
+        then:
+        - --rank-k
+        - {inputValue: rank_k}
+    - if:
+        cond: {isPresent: num_actions}
+        then:
+        - --num-actions
+        - {inputValue: num_actions}
+    - if:
+        cond: {isPresent: driver_steps}
+        then:
+        - --driver-steps
+        - {inputValue: driver_steps}
+    - if:
+        cond: {isPresent: bigquery_tmp_file}
+        then:
+        - --bigquery-tmp-file
+        - {inputValue: bigquery_tmp_file}
+    - if:
+        cond: {isPresent: bigquery_dataset_id}
+        then:
+        - --bigquery-dataset-id
+        - {inputValue: bigquery_dataset_id}
+    - if:
+        cond: {isPresent: bigquery_location}
+        then:
+        - --bigquery-location
+        - {inputValue: bigquery_location}
+    - if:
+        cond: {isPresent: bigquery_table_id}
+        then:
+        - --bigquery-table-id
+        - {inputValue: bigquery_table_id}
     - '----output-paths'
     - {outputPath: bigquery_dataset_id}
     - {outputPath: bigquery_location}
