@@ -1,0 +1,195 @@
+name: movielens-pipeline-startup
+description: Authors a RL pipeline for MovieLens movie recommendation system.
+metadata:
+  annotations:
+    sdk: 'https://cloud-pipelines.github.io/pipeline-editor/'
+inputs:
+  - name: training_artifacts_dir
+    type: String
+    description: Path to store the Trainer artifacts (trained policy).
+    annotations:
+      editor.position: '{"x":30,"y":440,"width":150,"height":40}'
+  - name: project_id
+    type: String
+    description: |-
+      GCP project ID. This is required because otherwise the BigQuery
+      client will use the ID of the tenant GCP project created as a result of
+      KFP, which doesn't have proper access to BigQuery.
+    annotations:
+      editor.position: '{"x":102.67868033852773,"y":50.00000000000001,"width":150,"height":40}'
+  - name: num_epochs
+    type: Integer
+    description: Optional; number of training epochs.
+    default: '5'
+    optional: true
+    annotations:
+      editor.position: '{"x":190,"y":440,"width":150,"height":40}'
+  - name: raw_data_path
+    type: String
+    description: Path to MovieLens 100K's "u.data" file.
+    annotations:
+      editor.position: '{"x":192.67868033852773,"y":0,"width":150,"height":40}'
+  - name: batch_size
+    type: Integer
+    description: |-
+      Optional; batch size of environment generated quantities eg.
+      rewards.
+    default: '8'
+    optional: true
+    annotations:
+      editor.position: '{"x":282.67868033852767,"y":50,"width":150,"height":40}'
+  - name: rank_k
+    type: Integer
+    description: |-
+      Optional; rank for matrix factorization in the MovieLens environment;
+      also the observation dimension.
+    default: '20'
+    optional: true
+    annotations:
+      editor.position: '{"x":372.67868033852767,"y":0,"width":150,"height":40}'
+  - name: num_actions
+    type: Integer
+    description: Optional; number of actions (movie items) to choose from.
+    default: '20'
+    optional: true
+    annotations:
+      editor.position: '{"x":462.67868033852767,"y":50,"width":150,"height":40}'
+  - name: bigquery_max_rows
+    type: Integer
+    description: Optional; maximum number of rows to ingest.
+    default: '10000'
+    optional: true
+    annotations:
+      editor.position: '{"x":550,"y":260,"width":150,"height":40}'
+  - name: driver_steps
+    type: Integer
+    description: Optional; number of steps to run per batch.
+    default: '3'
+    optional: true
+    annotations:
+      editor.position: '{"x":552.6786803385278,"y":0,"width":150,"height":40}'
+  - name: tikhonov_weight
+    type: Float
+    description: |-
+      Optional; LinUCB Tikhonov regularization weight of the
+      Trainer.
+    default: '0.01'
+    optional: true
+    annotations:
+      editor.position: '{"x":560,"y":440,"width":150,"height":40}'
+  - name: bigquery_dataset_id
+    type: String
+    default: movielens_dataset
+    optional: true
+    annotations:
+      editor.position: '{"x":642.6786803385278,"y":50,"width":150,"height":40}'
+  - name: agent_alpha
+    type: Float
+    description: |-
+      Optional; LinUCB exploration parameter that multiplies the
+      confidence intervals of the Trainer.
+    default: '10'
+    optional: true
+    annotations:
+      editor.position: '{"x":720,"y":440,"width":150,"height":40}'
+  - name: bigquery_location
+    type: String
+    description: A string of the BigQuery dataset location.
+    default: us
+    optional: true
+    annotations:
+      editor.position: '{"x":732.6786803385278,"y":0,"width":150,"height":40}'
+  - name: bigquery_table_id
+    type: String
+    description: |-
+      A string of the BigQuery table ID in the format of
+      "project.dataset.table".
+    default: movielens_dataset.training_data
+    optional: true
+    annotations:
+      editor.position: '{"x":822.6786803385278,"y":50,"width":150,"height":40}'
+implementation:
+  graph:
+    tasks:
+      Generate movielens dataset for bigquery:
+        componentRef:
+          url: "https://raw.githubusercontent.com/Ark-kun/vertex-ai-samples/8233403b8269080a1a882ad9d4ae130ae888a08e/tutorials/community/reinforcement_learning/pipeline_reinforcement_learning_vertex_ai/src/generator/component.yaml"
+        arguments:
+          project_id:
+            graphInput:
+              inputName: project_id
+          raw_data_path:
+            graphInput:
+              inputName: raw_data_path
+          batch_size:
+            graphInput:
+              inputName: batch_size
+          rank_k:
+            graphInput:
+              inputName: rank_k
+          num_actions:
+            graphInput:
+              inputName: num_actions
+          driver_steps:
+            graphInput:
+              inputName: driver_steps
+          bigquery_tmp_file: tmp.json
+          bigquery_dataset_id:
+            graphInput:
+              inputName: bigquery_dataset_id
+          bigquery_location:
+            graphInput:
+              inputName: bigquery_location
+          bigquery_table_id:
+            graphInput:
+              inputName: bigquery_table_id
+        annotations:
+          editor.position: '{"x":360,"y":230,"width":180,"height":54}'
+      Ingest bigquery dataset into tfrecord:
+        componentRef:
+          url: "https://raw.githubusercontent.com/Ark-kun/vertex-ai-samples/8233403b8269080a1a882ad9d4ae130ae888a08e/tutorials/community/reinforcement_learning/pipeline_reinforcement_learning_vertex_ai/src/ingester/component.yaml"
+        arguments:
+          project_id:
+            graphInput:
+              inputName: project_id
+          bigquery_table_id:
+            taskOutput:
+              outputName: bigquery_table_id
+              taskId: Generate movielens dataset for bigquery
+              type: String
+          tfrecord_file: 'gs://avolkov/tmp/trainer_input_path/*'
+          bigquery_max_rows:
+            graphInput:
+              inputName: bigquery_max_rows
+        annotations:
+          editor.position: '{"x":360,"y":410,"width":180,"height":54}'
+      Train off polify rl model:
+        componentRef:
+          url: "https://raw.githubusercontent.com/Ark-kun/vertex-ai-samples/8233403b8269080a1a882ad9d4ae130ae888a08e/tutorials/community/reinforcement_learning/pipeline_reinforcement_learning_vertex_ai/src/trainer/component.yaml"
+        arguments:
+          training_artifacts_dir:
+            graphInput:
+              inputName: training_artifacts_dir
+          tfrecord_file:
+            taskOutput:
+              outputName: tfrecord_file
+              taskId: Ingest bigquery dataset into tfrecord
+              type: String
+          num_epochs:
+            graphInput:
+              inputName: num_epochs
+          rank_k:
+            graphInput:
+              inputName: rank_k
+          num_actions:
+            graphInput:
+              inputName: num_actions
+          tikhonov_weight:
+            graphInput:
+              inputName: tikhonov_weight
+          agent_alpha:
+            graphInput:
+              inputName: agent_alpha
+        annotations:
+          editor.position: '{"x":359.99999999999994,"y":610,"width":180,"height":40}'
+    outputValues: {}
