@@ -26,7 +26,7 @@ from tf_agents.bandits.environments import movielens_py_environment
 # Paths and configurations
 RAW_DATA_PATH = "gs://[your-bucket-name]/[your-dataset-dir]/u.data"  # FILL IN
 PROJECT_ID = "project-id"
-BIGQUERY_DATASET_ID = f"{PROJECT_ID}.movielens_dataset"
+BIGQUERY_DATASET_ID = f"movielens_dataset"
 BIGQUERY_LOCATION = "us"
 BIGQUERY_TABLE_ID = f"{BIGQUERY_DATASET_ID}.training_dataset"
 
