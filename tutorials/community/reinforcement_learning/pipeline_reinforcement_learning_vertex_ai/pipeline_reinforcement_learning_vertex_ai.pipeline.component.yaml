@@ -1,0 +1,97 @@
+name: movielens-pipeline-startup
+description: Authors a RL pipeline for MovieLens movie recommendation system.
+metadata:
+  annotations:
+    sdk: 'https://cloud-pipelines.github.io/pipeline-editor/'
+inputs:
+  - name: project_id
+    type: String
+    description: |-
+      GCP project ID. This is required because otherwise the BigQuery
+      client will use the ID of the tenant GCP project created as a result of
+      KFP, which doesn't have proper access to BigQuery.
+    annotations:
+      editor.position: '{"x":40,"y":280,"width":180,"height":40}'
+  - name: training_artifacts_dir
+    type: String
+    description: Path to store the Trainer artifacts (trained policy).
+    annotations:
+      editor.position: '{"x":230,"y":230,"width":180,"height":40}'
+implementation:
+  graph:
+    tasks:
+      Generate movielens dataset for bigquery:
+        componentRef:
+          url: 'https://raw.githubusercontent.com/Ark-kun/vertex-ai-samples/9699a47ce02df357a41f842f399ad246fb679d0a/tutorials/community/reinforcement_learning/pipeline_reinforcement_learning_vertex_ai/src/generator/component.yaml'
+        arguments:
+          project_id:
+            graphInput:
+              inputName: project_id
+          raw_data_path: 'gs://cloud-samples-data/vertex-ai/growth-rl-demo/u.data'
+          batch_size: '8'
+          rank_k: '20'
+          num_actions: '20'
+          driver_steps: '3'
+        annotations:
+          editor.position: '{"x":440,"y":70,"width":180,"height":54}'
+      Ingest bigquery dataset into tfrecord:
+        componentRef:
+          url: 'https://raw.githubusercontent.com/Ark-kun/vertex-ai-samples/9699a47ce02df357a41f842f399ad246fb679d0a/tutorials/community/reinforcement_learning/pipeline_reinforcement_learning_vertex_ai/src/ingester/component.yaml'
+        arguments:
+          project_id:
+            graphInput:
+              inputName: project_id
+          bigquery_table_id:
+            taskOutput:
+              outputName: bigquery_table_id
+              taskId: Generate movielens dataset for bigquery
+              type: String
+          bigquery_max_rows: '10000'
+        annotations:
+          editor.position: '{"x":440,"y":240,"width":180,"height":54}'
+      Train reinforcement learning policy:
+        componentRef:
+          url: 'https://raw.githubusercontent.com/Ark-kun/vertex-ai-samples/9699a47ce02df357a41f842f399ad246fb679d0a/tutorials/community/reinforcement_learning/pipeline_reinforcement_learning_vertex_ai/src/trainer/component.yaml'
+        arguments:
+          training_artifacts_dir:
+            graphInput:
+              inputName: training_artifacts_dir
+          tfrecords:
+            taskOutput:
+              outputName: tfrecords
+              taskId: Ingest bigquery dataset into tfrecord
+          num_epochs: '5'
+          rank_k: '20'
+          num_actions: '20'
+          tikhonov_weight: '0.01'
+          agent_alpha: '10'
+        annotations:
+          editor.position: '{"x":440,"y":380,"width":180,"height":54}'
+      Create model in Google Cloud Vertex AI:
+        componentRef:
+          url: 'https://raw.githubusercontent.com/Ark-kun/pipeline_components/2dd9024fb18d1f06f861aaad44dfc496f60e3447/components/google-cloud/Vertex_AI/Model/Upload/component.yaml'
+        arguments:
+          serving_container_image_uri: 'gcr.io/{PROJECT_ID}/{PREDICTION_CONTAINER}:latest'
+          artifact_uri:
+            taskOutput:
+              taskId: Train reinforcement learning policy
+              outputName: training_artifacts_dir
+          project:
+            graphInput:
+              inputName: project_id
+        annotations:
+          editor.position: '{"x":440,"y":520,"width":180,"height":54}'
+      Deploy vertex ai model to endpoint:
+        componentRef:
+          url: 'https://raw.githubusercontent.com/Ark-kun/pipeline_components/2dd9024fb18d1f06f861aaad44dfc496f60e3447/components/google-cloud/Vertex_AI/Model/Deploy_to_endpoint/component.yaml'
+        arguments:
+          model_name:
+            taskOutput:
+              taskId: Create model in Google Cloud Vertex AI
+              outputName: model_name
+          project:
+            graphInput:
+              inputName: project_id
+        annotations:
+          editor.position: '{"x":440,"y":660,"width":180,"height":54}'
+    outputValues: {}
