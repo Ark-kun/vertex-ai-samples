@@ -1,4 +1,4 @@
-name: Train off polify rl model
+name: Train reinforcement learning policy
 description: Implements off-policy training for a policy on dataset of TFRecord files.
 inputs:
 - name: training_artifacts_dir
@@ -42,7 +42,7 @@ implementation:
       printf "%s" "$0" > "$program_path"
       python3 -u "$program_path" "$@"
     - |
-      def train_off_polify_rl_model(
+      def train_reinforcement_learning_policy(
           training_artifacts_dir,
           tfrecord_file,
           num_epochs,
@@ -274,7 +274,7 @@ implementation:
           return str_value
 
       import argparse
-      _parser = argparse.ArgumentParser(prog='Train off polify rl model', description='Implements off-policy training for a policy on dataset of TFRecord files.')
+      _parser = argparse.ArgumentParser(prog='Train reinforcement learning policy', description='Implements off-policy training for a policy on dataset of TFRecord files.')
       _parser.add_argument("--training-artifacts-dir", dest="training_artifacts_dir", type=str, required=True, default=argparse.SUPPRESS)
       _parser.add_argument("--tfrecord-file", dest="tfrecord_file", type=str, required=True, default=argparse.SUPPRESS)
       _parser.add_argument("--num-epochs", dest="num_epochs", type=int, required=True, default=argparse.SUPPRESS)
@@ -286,7 +286,7 @@ implementation:
       _parsed_args = vars(_parser.parse_args())
       _output_files = _parsed_args.pop("_output_paths", [])
 
-      _outputs = train_off_polify_rl_model(**_parsed_args)
+      _outputs = train_reinforcement_learning_policy(**_parsed_args)
 
       _output_serializers = [
           _serialize_str,

@@ -17,7 +17,7 @@
 from typing import NamedTuple  # pylint: disable=unused-import
 
 
-def train_off_polify_rl_model(
+def train_reinforcement_learning_policy(
     training_artifacts_dir: str,
     tfrecord_file: str,
     num_epochs: int,
@@ -252,8 +252,8 @@ def train_off_polify_rl_model(
 if __name__ == "__main__":
   from kfp.components import create_component_from_func
 
-  train_off_polify_rl_model_op = create_component_from_func(
-    func=train_off_polify_rl_model,
+  train_reinforcement_learning_policy_op = create_component_from_func(
+    func=train_reinforcement_learning_policy,
     base_image="tensorflow/tensorflow:2.5.0",
     output_component_file="component.yaml",
     packages_to_install=[
