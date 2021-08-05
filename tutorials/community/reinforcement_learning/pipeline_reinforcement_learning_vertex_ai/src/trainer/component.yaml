@@ -6,7 +6,7 @@ inputs:
   description: |-
     Path to store the Trainer artifacts (trained
     policy).
-- {name: tfrecord_file, type: String, description: Path to file to write the ingestion
+- {name: tfrecords, type: TFRecords, description: Path to file to write the ingestion
     result TFRecords.}
 - {name: num_epochs, type: Integer, description: Number of training epochs., default: '5',
   optional: true}
@@ -49,7 +49,7 @@ implementation:
     - |
       def train_reinforcement_learning_policy(
           training_artifacts_dir,
-          tfrecord_file,
+          tfrecords_path,
           num_epochs = 5,
           rank_k = 20,
           num_actions = 20,
@@ -70,7 +70,7 @@ implementation:
         Args:
           training_artifacts_dir: Path to store the Trainer artifacts (trained
             policy).
-          tfrecord_file: Path to file to write the ingestion result TFRecords.
+          tfrecords_path: Path to file to write the ingestion result TFRecords.
           num_epochs: Number of training epochs.
           rank_k: Rank for matrix factorization in the MovieLens environment; also
             the observation dimension.
@@ -260,7 +260,7 @@ implementation:
 
         execute_training_and_save_policy(
             training_artifacts_dir=training_artifacts_dir,
-            tfrecord_file=tfrecord_file,
+            tfrecord_file=tfrecords_path,
             num_epochs=num_epochs,
             rank_k=rank_k,
             num_actions=num_actions,
@@ -281,7 +281,7 @@ implementation:
       import argparse
       _parser = argparse.ArgumentParser(prog='Train reinforcement learning policy', description='Implements off-policy training for a policy on dataset of TFRecord files.')
       _parser.add_argument("--training-artifacts-dir", dest="training_artifacts_dir", type=str, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--tfrecord-file", dest="tfrecord_file", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--tfrecords", dest="tfrecords_path", type=str, required=True, default=argparse.SUPPRESS)
       _parser.add_argument("--num-epochs", dest="num_epochs", type=int, required=False, default=argparse.SUPPRESS)
       _parser.add_argument("--rank-k", dest="rank_k", type=int, required=False, default=argparse.SUPPRESS)
       _parser.add_argument("--num-actions", dest="num_actions", type=int, required=False, default=argparse.SUPPRESS)
@@ -309,8 +309,8 @@ implementation:
     args:
     - --training-artifacts-dir
     - {inputValue: training_artifacts_dir}
-    - --tfrecord-file
-    - {inputValue: tfrecord_file}
+    - --tfrecords
+    - {inputPath: tfrecords}
     - if:
         cond: {isPresent: num_epochs}
         then:

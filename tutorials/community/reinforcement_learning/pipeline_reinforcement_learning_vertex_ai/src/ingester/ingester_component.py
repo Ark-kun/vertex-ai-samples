@@ -13,17 +13,15 @@
 # limitations under the License.
 
 """The Ingester component for ingesting BigQuery data into TFRecords."""
-from typing import NamedTuple
+from kfp.components import OutputPath
 
 
 def ingest_bigquery_dataset_into_tfrecord(
     project_id: str,
     bigquery_table_id: str,
-    tfrecord_file: str,
+    tfrecords_path: OutputPath("TFRecords"),
     bigquery_max_rows: int = None
-) -> NamedTuple("Outputs", [
-    ("tfrecord_file", str),
-]):
+):
   """Ingests data from BigQuery, formats them and outputs TFRecord files.
 
   Serves as the Ingester pipeline component:
@@ -43,7 +41,7 @@ def ingest_bigquery_dataset_into_tfrecord(
       KFP, which doesn't have proper access to BigQuery.
     bigquery_table_id: A string of the BigQuery table ID in the format of
       "project.dataset.table".
-    tfrecord_file: Path to file to write the ingestion result TFRecords.
+    tfrecords_path: Path to file to write the ingestion result TFRecords.
     bigquery_max_rows: Optional; maximum number of rows to ingest.
 
   Returns:
@@ -160,13 +158,7 @@ def ingest_bigquery_dataset_into_tfrecord(
       bigquery_table_id=bigquery_table_id,
       bigquery_max_rows=bigquery_max_rows)
 
-  write_tfrecords(tfrecord_file, table)
-
-  outputs = collections.namedtuple(
-      "Outputs",
-      ["tfrecord_file"])
-
-  return outputs(tfrecord_file)
+  write_tfrecords(tfrecords_path, table)
 
 
 if __name__ == "__main__":

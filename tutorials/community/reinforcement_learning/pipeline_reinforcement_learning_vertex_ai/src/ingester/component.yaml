@@ -12,12 +12,11 @@ inputs:
   description: |-
     A string of the BigQuery table ID in the format of
     "project.dataset.table".
-- {name: tfrecord_file, type: String, description: Path to file to write the ingestion
-    result TFRecords.}
 - {name: bigquery_max_rows, type: Integer, description: Optional; maximum number of
     rows to ingest., optional: true}
 outputs:
-- {name: tfrecord_file, type: String}
+- {name: tfrecords, type: TFRecords, description: Path to file to write the ingestion
+    result TFRecords.}
 implementation:
   container:
     image: tensorflow/tensorflow:2.5.0
@@ -35,10 +34,15 @@ implementation:
       printf "%s" "$0" > "$program_path"
       python3 -u "$program_path" "$@"
     - |
+      def _make_parent_dirs_and_return_path(file_path: str):
+          import os
+          os.makedirs(os.path.dirname(file_path), exist_ok=True)
+          return file_path
+
       def ingest_bigquery_dataset_into_tfrecord(
           project_id,
           bigquery_table_id,
-          tfrecord_file,
+          tfrecords_path,
           bigquery_max_rows = None
       ):
         """Ingests data from BigQuery, formats them and outputs TFRecord files.
@@ -60,7 +64,7 @@ implementation:
             KFP, which doesn't have proper access to BigQuery.
           bigquery_table_id: A string of the BigQuery table ID in the format of
             "project.dataset.table".
-          tfrecord_file: Path to file to write the ingestion result TFRecords.
+          tfrecords_path: Path to file to write the ingestion result TFRecords.
           bigquery_max_rows: Optional; maximum number of rows to ingest.
 
         Returns:
@@ -177,55 +181,26 @@ implementation:
             bigquery_table_id=bigquery_table_id,
             bigquery_max_rows=bigquery_max_rows)
 
-        write_tfrecords(tfrecord_file, table)
-
-        outputs = collections.namedtuple(
-            "Outputs",
-            ["tfrecord_file"])
-
-        return outputs(tfrecord_file)
-
-      def _serialize_str(str_value: str) -> str:
-          if not isinstance(str_value, str):
-              raise TypeError('Value "{}" has type "{}" instead of str.'.format(str(str_value), str(type(str_value))))
-          return str_value
+        write_tfrecords(tfrecords_path, table)
 
       import argparse
       _parser = argparse.ArgumentParser(prog='Ingest bigquery dataset into tfrecord', description='Ingests data from BigQuery, formats them and outputs TFRecord files.')
       _parser.add_argument("--project-id", dest="project_id", type=str, required=True, default=argparse.SUPPRESS)
       _parser.add_argument("--bigquery-table-id", dest="bigquery_table_id", type=str, required=True, default=argparse.SUPPRESS)
-      _parser.add_argument("--tfrecord-file", dest="tfrecord_file", type=str, required=True, default=argparse.SUPPRESS)
       _parser.add_argument("--bigquery-max-rows", dest="bigquery_max_rows", type=int, required=False, default=argparse.SUPPRESS)
-      _parser.add_argument("----output-paths", dest="_output_paths", type=str, nargs=1)
+      _parser.add_argument("--tfrecords", dest="tfrecords_path", type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)
       _parsed_args = vars(_parser.parse_args())
-      _output_files = _parsed_args.pop("_output_paths", [])
 
       _outputs = ingest_bigquery_dataset_into_tfrecord(**_parsed_args)
-
-      _output_serializers = [
-          _serialize_str,
-
-      ]
-
-      import os
-      for idx, output_file in enumerate(_output_files):
-          try:
-              os.makedirs(os.path.dirname(output_file))
-          except OSError:
-              pass
-          with open(output_file, 'w') as f:
-              f.write(_output_serializers[idx](_outputs[idx]))
     args:
     - --project-id
     - {inputValue: project_id}
     - --bigquery-table-id
     - {inputValue: bigquery_table_id}
-    - --tfrecord-file
-    - {inputValue: tfrecord_file}
     - if:
         cond: {isPresent: bigquery_max_rows}
         then:
         - --bigquery-max-rows
         - {inputValue: bigquery_max_rows}
-    - '----output-paths'
-    - {outputPath: tfrecord_file}
+    - --tfrecords
+    - {outputPath: tfrecords}

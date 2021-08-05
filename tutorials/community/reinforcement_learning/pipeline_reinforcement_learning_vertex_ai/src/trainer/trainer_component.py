@@ -16,10 +16,11 @@
 # Import for the function return value type.
 from typing import NamedTuple  # pylint: disable=unused-import
 
+from kfp.components import InputPath
 
 def train_reinforcement_learning_policy(
     training_artifacts_dir: str,
-    tfrecord_file: str,
+    tfrecords_path: InputPath("TFRecords"),
     num_epochs: int = 5,
     rank_k: int = 20,
     num_actions: int = 20,
@@ -42,7 +43,7 @@ def train_reinforcement_learning_policy(
   Args:
     training_artifacts_dir: Path to store the Trainer artifacts (trained
       policy).
-    tfrecord_file: Path to file to write the ingestion result TFRecords.
+    tfrecords_path: Path to file to write the ingestion result TFRecords.
     num_epochs: Number of training epochs.
     rank_k: Rank for matrix factorization in the MovieLens environment; also
       the observation dimension.
@@ -235,7 +236,7 @@ def train_reinforcement_learning_policy(
 
   execute_training_and_save_policy(
       training_artifacts_dir=training_artifacts_dir,
-      tfrecord_file=tfrecord_file,
+      tfrecord_file=tfrecords_path,
       num_epochs=num_epochs,
       rank_k=rank_k,
       num_actions=num_actions,
